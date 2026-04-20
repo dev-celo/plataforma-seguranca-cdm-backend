@@ -1,0 +1,64 @@
+# Dependências
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build / produção
+dist/
+build/
+.next/
+out/
+
+# Arquivos de ambiente
+.env
+.env.*
+!.env.example
+
+# Cache
+.cache/
+.parcel-cache/
+.npm
+.eslintcache
+
+# Testes
+coverage/
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Arquivos temporários
+tmp/
+temp/
+
+# Arquivos de lock (opcional - depende da estratégia)
+# Se estiver trabalhando em equipe, normalmente NÃO ignorar:
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# TypeScript
+*.tsbuildinfo
+
+# Firebase (se usar)
+.firebase/
+
+# Vercel
+.vercel/
+
+# Docker
+docker-compose.override.yml
+
+firebase-service-account.json
