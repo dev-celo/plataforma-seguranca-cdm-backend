@@ -62,3 +62,5 @@ temp/
 docker-compose.override.yml
 
 firebase-service-account.json
+
+data
