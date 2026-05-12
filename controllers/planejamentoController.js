@@ -1,31 +1,45 @@
 // controllers/planejamentoController.js
 import { db } from '../services/firebaseAdmin.js';
-import { COLLECTION, validarCard, validarTarefa, calcularStatusTarefa, atualizarStatusTarefas } from '../models/Planejamento.js';
+import { auth } from '../services/firebaseAdmin.js';
+import { COLLECTION, validarCard, validarTarefa, atualizarStatusTarefas } from '../models/Planejamento.js';
 import { verificarENotificarAtrasos } from '../services/emailService.js';
+
+// ============================
+// FUNÇÕES AUXILIARES
+// ============================
+
+const isAdmin = (usuario) => {
+  const adminEmails = [
+    'marcelohenrique.backend@gmail.com',
+    'admin@cdm.com.br'
+  ];
+  return adminEmails.includes(usuario.email) || usuario.admin === true;
+};
 
 // ============================
 // CRUD DE CARDS (RESPONSÁVEIS)
 // ============================
 
 /**
- * Listar todos os cards de planejamento
+ * Listar cards (filtrados por usuário)
  * GET /api/planejamento/cards
  */
 export const listarCards = async (req, res, next) => {
   try {
-    const snapshot = await db.collection(COLLECTION).orderBy('createdAt', 'desc').get();
-    const cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const { usuario } = req;
+    const admin = isAdmin(usuario);
     
-    // Atualizar status das tarefas antes de enviar
-    for (const card of cards) {
-      await atualizarStatusTarefas(card.id);
+    let query = db.collection(COLLECTION).orderBy('createdAt', 'desc');
+    
+    // Se não for admin, mostra apenas seus cards
+    if (!admin) {
+      query = query.where('email', '==', usuario.email);
     }
     
-    // Buscar os cards atualizados
-    const snapshotAtualizado = await db.collection(COLLECTION).orderBy('createdAt', 'desc').get();
-    const cardsAtualizados = snapshotAtualizado.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const snapshot = await query.get();
+    const cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     
-    res.json({ success: true, data: cardsAtualizados });
+    res.json({ success: true, data: cards });
   } catch (error) {
     console.error('❌ Erro ao listar cards:', error);
     next(error);
@@ -33,11 +47,17 @@ export const listarCards = async (req, res, next) => {
 };
 
 /**
- * Criar um novo card de planejamento
+ * Criar um novo card (apenas admin)
  * POST /api/planejamento/cards
  */
 export const criarCard = async (req, res, next) => {
   try {
+    const { usuario } = req;
+    
+    if (!isAdmin(usuario)) {
+      return res.status(403).json({ success: false, error: 'Apenas administradores podem criar cards' });
+    }
+    
     const { responsavel, cargo, email } = req.body;
     
     const validation = validarCard({ responsavel, cargo, email });
@@ -45,11 +65,22 @@ export const criarCard = async (req, res, next) => {
       return res.status(400).json({ success: false, errors: validation.errors });
     }
     
+    // Buscar o UID do usuário pelo email
+    let userId = null;
+    try {
+      const userRecord = await auth.getUserByEmail(email);
+      userId = userRecord.uid;
+    } catch (error) {
+      console.log(`⚠️ Usuário com email ${email} não encontrado no Firebase Auth`);
+    }
+    
     const cardData = {
       responsavel: responsavel.trim(),
       cargo: cargo.trim(),
       email: email.trim(),
+      userId,
       tarefas: [],
+      createdBy: usuario.uid,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -69,11 +100,17 @@ export const criarCard = async (req, res, next) => {
 };
 
 /**
- * Atualizar um card
+ * Atualizar um card (apenas admin)
  * PUT /api/planejamento/cards/:id
  */
 export const atualizarCard = async (req, res, next) => {
   try {
+    const { usuario } = req;
+    
+    if (!isAdmin(usuario)) {
+      return res.status(403).json({ success: false, error: 'Apenas administradores podem editar cards' });
+    }
+    
     const { id } = req.params;
     const { responsavel, cargo, email } = req.body;
     
@@ -110,11 +147,17 @@ export const atualizarCard = async (req, res, next) => {
 };
 
 /**
- * Excluir um card (e todas as suas tarefas)
+ * Excluir um card (apenas admin)
  * DELETE /api/planejamento/cards/:id
  */
 export const excluirCard = async (req, res, next) => {
   try {
+    const { usuario } = req;
+    
+    if (!isAdmin(usuario)) {
+      return res.status(403).json({ success: false, error: 'Apenas administradores podem excluir cards' });
+    }
+    
     const { id } = req.params;
     const cardRef = db.collection(COLLECTION).doc(id);
     const card = await cardRef.get();
@@ -137,11 +180,17 @@ export const excluirCard = async (req, res, next) => {
 // ============================
 
 /**
- * Adicionar tarefa a um card
+ * Adicionar tarefa (apenas admin)
  * POST /api/planejamento/cards/:cardId/tarefas
  */
 export const adicionarTarefa = async (req, res, next) => {
   try {
+    const { usuario } = req;
+    
+    if (!isAdmin(usuario)) {
+      return res.status(403).json({ success: false, error: 'Apenas administradores podem adicionar tarefas' });
+    }
+    
     const { cardId } = req.params;
     const { titulo, descricao, dataInicio, dataFim, anexo } = req.body;
     
@@ -197,18 +246,16 @@ export const adicionarTarefa = async (req, res, next) => {
 };
 
 /**
- * Atualizar uma tarefa
+ * Atualizar uma tarefa (apenas admin pode editar conteúdo)
  * PUT /api/planejamento/cards/:cardId/tarefas/:tarefaId
  */
 export const atualizarTarefa = async (req, res, next) => {
   try {
+    const { usuario } = req;
     const { cardId, tarefaId } = req.params;
-    const { titulo, descricao, dataInicio, dataFim, status, anexo } = req.body;
+    const { titulo, descricao, dataInicio, dataFim, anexo } = req.body;
     
-    const validation = validarTarefa({ titulo, descricao, dataInicio, dataFim, status });
-    if (!validation.valid) {
-      return res.status(400).json({ success: false, errors: validation.errors });
-    }
+    const admin = isAdmin(usuario);
     
     const cardRef = db.collection(COLLECTION).doc(cardId);
     const card = await cardRef.get();
@@ -225,33 +272,35 @@ export const atualizarTarefa = async (req, res, next) => {
       return res.status(404).json({ success: false, error: 'Tarefa não encontrada' });
     }
     
-    // Calcular status automaticamente se não foi enviado
-    let novoStatus = status;
-    if (!novoStatus) {
-      const hoje = new Date().toISOString().split('T')[0];
-      novoStatus = dataFim < hoje ? 'atrasada' : 'pendente';
+    // Se não for admin, verifica se o card pertence ao usuário
+    if (!admin && cardData.email !== usuario.email) {
+      return res.status(403).json({ success: false, error: 'Você não tem permissão para editar esta tarefa' });
     }
     
     const tarefaAtualizada = {
       ...tarefas[index],
-      titulo: titulo.trim(),
-      descricao: descricao?.trim() || '',
-      dataInicio,
-      dataFim,
-      status: novoStatus,
-      anexo: anexo || null,
+      titulo: titulo?.trim() || tarefas[index].titulo,
+      descricao: descricao?.trim() || tarefas[index].descricao,
+      dataInicio: dataInicio || tarefas[index].dataInicio,
+      dataFim: dataFim || tarefas[index].dataFim,
+      anexo: anexo !== undefined ? anexo : tarefas[index].anexo,
       updatedAt: new Date().toISOString(),
     };
+    
+    // Recalcular status baseado na nova data
+    const hoje = new Date().toISOString().split('T')[0];
+    tarefaAtualizada.status = tarefaAtualizada.dataFim < hoje && tarefaAtualizada.status !== 'concluida' 
+      ? 'atrasada' 
+      : tarefaAtualizada.status;
     
     tarefas[index] = tarefaAtualizada;
     await cardRef.update({ tarefas });
     
     // Se a tarefa está atrasada e não foi notificada, enviar e-mail
-    if (novoStatus === 'atrasada' && !tarefaAtualizada.notificadoAtraso) {
+    if (tarefaAtualizada.status === 'atrasada' && !tarefaAtualizada.notificadoAtraso) {
       const { enviarNotificacaoAtraso } = await import('../services/emailService.js');
       await enviarNotificacaoAtraso(cardData.email, tarefaAtualizada, cardData.responsavel);
       
-      // Marcar como notificada
       tarefaAtualizada.notificadoAtraso = true;
       tarefas[index] = tarefaAtualizada;
       await cardRef.update({ tarefas });
@@ -269,11 +318,17 @@ export const atualizarTarefa = async (req, res, next) => {
 };
 
 /**
- * Excluir uma tarefa
+ * Excluir uma tarefa (apenas admin)
  * DELETE /api/planejamento/cards/:cardId/tarefas/:tarefaId
  */
 export const excluirTarefa = async (req, res, next) => {
   try {
+    const { usuario } = req;
+    
+    if (!isAdmin(usuario)) {
+      return res.status(403).json({ success: false, error: 'Apenas administradores podem excluir tarefas' });
+    }
+    
     const { cardId, tarefaId } = req.params;
     
     const cardRef = db.collection(COLLECTION).doc(cardId);
@@ -302,10 +357,14 @@ export const excluirTarefa = async (req, res, next) => {
 /**
  * Alternar status de conclusão de uma tarefa (toggle)
  * PATCH /api/planejamento/cards/:cardId/tarefas/:tarefaId/toggle
+ * ✅ Usuários comuns podem fazer isso apenas em seus próprios cards
  */
 export const toggleConcluirTarefa = async (req, res, next) => {
   try {
+    const { usuario } = req;
     const { cardId, tarefaId } = req.params;
+    
+    const admin = isAdmin(usuario);
     
     const cardRef = db.collection(COLLECTION).doc(cardId);
     const card = await cardRef.get();
@@ -315,6 +374,12 @@ export const toggleConcluirTarefa = async (req, res, next) => {
     }
     
     const cardData = card.data();
+    
+    // Verificar permissão
+    if (!admin && cardData.email !== usuario.email) {
+      return res.status(403).json({ success: false, error: 'Você não tem permissão para alterar esta tarefa' });
+    }
+    
     const tarefas = cardData.tarefas || [];
     const index = tarefas.findIndex(t => t.id === tarefaId);
     
@@ -331,7 +396,7 @@ export const toggleConcluirTarefa = async (req, res, next) => {
     res.json({ 
       success: true, 
       data: tarefas[index],
-      message: novoStatus === 'concluida' ? 'Tarefa concluída!' : 'Tarefa reaberta!' 
+      message: novoStatus === 'concluida' ? '✅ Tarefa concluída!' : '🔄 Tarefa reaberta!' 
     });
   } catch (error) {
     console.error('❌ Erro ao alternar status da tarefa:', error);
@@ -340,11 +405,17 @@ export const toggleConcluirTarefa = async (req, res, next) => {
 };
 
 /**
- * Verificar e notificar todas as tarefas atrasadas (endpoint para cron job)
+ * Verificar e notificar todas as tarefas atrasadas
  * POST /api/planejamento/verificar-atrasos
  */
 export const verificarNotificarAtrasos = async (req, res, next) => {
   try {
+    const { usuario } = req;
+    
+    if (!isAdmin(usuario)) {
+      return res.status(403).json({ success: false, error: 'Apenas administradores podem executar esta ação' });
+    }
+    
     const notificacoes = await verificarENotificarAtrasos(db, COLLECTION);
     res.json({ 
       success: true, 

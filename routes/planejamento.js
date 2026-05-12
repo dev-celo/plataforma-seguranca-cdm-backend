@@ -1,6 +1,6 @@
 // routes/planejamento.js
 import express from 'express';
-import { validarAcessoPlanejamento } from '../services/planejamentoAuth.js';
+import { autenticarUsuario } from '../services/planejamentoAuth.js';
 import {
   listarCards,
   criarCard,
@@ -15,8 +15,8 @@ import {
 
 const router = express.Router();
 
-// Todas as rotas exigem o código de acesso
-router.use(validarAcessoPlanejamento);
+// 🔥 TODAS as rotas exigem autenticação (via Firebase Auth)
+router.use(autenticarUsuario);
 
 // Rotas de Cards
 router.get('/cards', listarCards);
@@ -30,7 +30,7 @@ router.put('/cards/:cardId/tarefas/:tarefaId', atualizarTarefa);
 router.delete('/cards/:cardId/tarefas/:tarefaId', excluirTarefa);
 router.patch('/cards/:cardId/tarefas/:tarefaId/toggle', toggleConcluirTarefa);
 
-// Rota para verificar atrasos (pode ser chamada manualmente ou por cron job)
+// Rota para verificar atrasos (apenas admin)
 router.post('/verificar-atrasos', verificarNotificarAtrasos);
 
 export default router;
