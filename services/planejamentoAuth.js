@@ -1,26 +1,29 @@
 // services/planejamentoAuth.js
-const ACCESS_CODE = 'construtoracdm';
+import { auth } from './firebaseAdmin.js';
 
 /**
- * Valida o código de acesso enviado na requisição
- * Pode vir via query string (?codigo=xxx) ou header (x-access-code)
+ * Middleware para autenticar usuário via Firebase Auth
+ * Esta versão substitui o código fixo "construtoracdm"
  */
-export const validarAcessoPlanejamento = (req, res, next) => {
-  const codigo = req.query.codigo || req.headers['x-access-code'];
+export const autenticarUsuario = async (req, res, next) => {
+  const token = req.headers.authorization?.split('Bearer ')[1];
   
-  if (!codigo) {
+  if (!token) {
     return res.status(401).json({ 
       success: false, 
-      error: 'Código de acesso não informado' 
+      error: 'Token de autenticação não fornecido' 
     });
   }
   
-  if (codigo !== ACCESS_CODE) {
-    return res.status(403).json({ 
+  try {
+    const decodedToken = await auth.verifyIdToken(token);
+    req.usuario = decodedToken;
+    next();
+  } catch (error) {
+    console.error('❌ Erro ao verificar token:', error.message);
+    return res.status(401).json({ 
       success: false, 
-      error: 'Código de acesso inválido' 
+      error: 'Token inválido ou expirado' 
     });
   }
-  
-  next();
 };
