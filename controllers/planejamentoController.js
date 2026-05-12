@@ -11,7 +11,8 @@ import { verificarENotificarAtrasos } from '../services/emailService.js';
 const isAdmin = (usuario) => {
   const adminEmails = [
     'marcelohenrique.backend@gmail.com',
-    'admin@cdm.com.br'
+    'viniciusbacelar@cdmconstrutoraba.com',
+    'diego.montanha@cdmconstrutoraba.com'
   ];
   return adminEmails.includes(usuario.email) || usuario.admin === true;
 };
