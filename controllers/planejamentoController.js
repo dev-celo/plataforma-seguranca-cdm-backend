@@ -234,9 +234,14 @@ export const adicionarTarefa = async (req, res, next) => {
     
     const cardData = card.data();
     
-    // 🔥 VERIFICAR PERMISSÃO: admin OU dono do card
-    if (!admin && cardData.email !== usuario.email) {
-      return res.status(403).json({ success: false, error: 'Você só pode adicionar tarefas ao seu próprio card' });
+    // 🔥 PERMISSÃO: admin OU o próprio dono do card
+    const isOwner = cardData.email === usuario.email;
+    
+    if (!admin && !isOwner) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Você só pode adicionar tarefas ao seu próprio card' 
+      });
     }
     
     const validation = validarTarefa({ titulo, descricao, dataInicio, dataFim });
