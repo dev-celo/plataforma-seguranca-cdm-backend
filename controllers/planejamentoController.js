@@ -30,20 +30,53 @@ export const listarCards = async (req, res, next) => {
     const { usuario } = req;
     const admin = isAdmin(usuario);
     
+    console.log(`📋 [DEBUG] Buscando cards para: ${usuario.email}`);
+    console.log(`📋 [DEBUG] É admin? ${admin}`);
+    
     let query = db.collection(COLLECTION).orderBy('createdAt', 'desc');
     
-    // Se não for admin, mostra apenas seus cards
     if (!admin) {
+      console.log(`📋 [DEBUG] Filtrando por email: ${usuario.email}`);
       query = query.where('email', '==', usuario.email);
     }
     
     const snapshot = await query.get();
-    const cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log(`📋 [DEBUG] Documentos encontrados: ${snapshot.size}`);
     
-    res.json({ success: true, data: cards });
+    if (snapshot.empty) {
+      console.log(`📋 [DEBUG] Nenhum card encontrado, retornando array vazio`);
+      return res.json({ success: true, data: [] });
+    }
+    
+    const cards = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    console.log(`📋 [DEBUG] Cards carregados: ${cards.length}`);
+    
+    // Atualizar status das tarefas (se houver cards)
+    for (const card of cards) {
+      try {
+        console.log(`📋 [DEBUG] Atualizando status do card: ${card.id}`);
+        await atualizarStatusTarefas(card.id);
+      } catch (updateError) {
+        console.error(`❌ Erro ao atualizar card ${card.id}:`, updateError.message);
+      }
+    }
+    
+    // Buscar novamente para pegar status atualizados
+    const snapshotAtualizado = await query.get();
+    const cardsAtualizados = snapshotAtualizado.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    console.log(`✅ [DEBUG] Retornando ${cardsAtualizados.length} cards`);
+    res.json({ success: true, data: cardsAtualizados });
+    
   } catch (error) {
-    console.error('❌ Erro ao listar cards:', error);
-    next(error);
+    console.error('❌ [DEBUG] Erro crítico em listarCards:', error);
+    console.error('❌ [DEBUG] Stack:', error.stack);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erro interno ao buscar planejamento',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 

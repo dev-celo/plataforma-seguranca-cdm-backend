@@ -70,28 +70,39 @@ export const calcularStatusTarefa = (tarefa) => {
  * Atualiza o status de todas as tarefas de um card baseado nas datas
  */
 export const atualizarStatusTarefas = async (cardId) => {
-  const cardRef = db.collection(COLLECTION).doc(cardId);
-  const card = await cardRef.get();
-  
-  if (!card.exists) return;
-  
-  const dados = card.data();
-  let tarefasAtualizadas = false;
-  
-  const tarefas = (dados.tarefas || []).map(tarefa => {
-    const novoStatus = calcularStatusTarefa(tarefa);
-    if (tarefa.status !== novoStatus) {
-      tarefasAtualizadas = true;
-      return { ...tarefa, status: novoStatus };
+  try {
+    const cardRef = db.collection(COLLECTION).doc(cardId);
+    const card = await cardRef.get();
+    
+    if (!card.exists) {
+      console.log(`⚠️ Card ${cardId} não encontrado`);
+      return false;
     }
-    return tarefa;
-  });
-  
-  if (tarefasAtualizadas) {
-    await cardRef.update({ tarefas });
+    
+    const dados = card.data();
+    let tarefasAtualizadas = false;
+    const hoje = new Date().toISOString().split('T')[0];
+    
+    const tarefas = (dados.tarefas || []).map(tarefa => {
+      if (tarefa.status === 'concluida') return tarefa;
+      
+      const novoStatus = tarefa.dataFim < hoje ? 'atrasada' : 'pendente';
+      if (tarefa.status !== novoStatus) {
+        tarefasAtualizadas = true;
+        return { ...tarefa, status: novoStatus };
+      }
+      return tarefa;
+    });
+    
+    if (tarefasAtualizadas) {
+      await cardRef.update({ tarefas });
+    }
+    
+    return tarefasAtualizadas;
+  } catch (error) {
+    console.error(`❌ Erro em atualizarStatusTarefas para card ${cardId}:`, error.message);
+    return false;
   }
-  
-  return tarefasAtualizadas;
 };
 
 export { COLLECTION };
