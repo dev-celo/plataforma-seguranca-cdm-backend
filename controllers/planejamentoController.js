@@ -220,18 +220,10 @@ export const excluirCard = async (req, res, next) => {
 export const adicionarTarefa = async (req, res, next) => {
   try {
     const { usuario } = req;
-    
-    if (!isAdmin(usuario)) {
-      return res.status(403).json({ success: false, error: 'Apenas administradores podem adicionar tarefas' });
-    }
-    
     const { cardId } = req.params;
     const { titulo, descricao, dataInicio, dataFim, anexo } = req.body;
     
-    const validation = validarTarefa({ titulo, descricao, dataInicio, dataFim });
-    if (!validation.valid) {
-      return res.status(400).json({ success: false, errors: validation.errors });
-    }
+    const admin = isAdmin(usuario);
     
     const cardRef = db.collection(COLLECTION).doc(cardId);
     const card = await cardRef.get();
@@ -241,6 +233,17 @@ export const adicionarTarefa = async (req, res, next) => {
     }
     
     const cardData = card.data();
+    
+    // 🔥 VERIFICAR PERMISSÃO: admin OU dono do card
+    if (!admin && cardData.email !== usuario.email) {
+      return res.status(403).json({ success: false, error: 'Você só pode adicionar tarefas ao seu próprio card' });
+    }
+    
+    const validation = validarTarefa({ titulo, descricao, dataInicio, dataFim });
+    if (!validation.valid) {
+      return res.status(400).json({ success: false, errors: validation.errors });
+    }
+    
     const hoje = new Date().toISOString().split('T')[0];
     const status = dataFim < hoje ? 'atrasada' : 'pendente';
     
@@ -293,6 +296,10 @@ export const atualizarTarefa = async (req, res, next) => {
     
     const cardRef = db.collection(COLLECTION).doc(cardId);
     const card = await cardRef.get();
+
+    if (!admin) {
+      return res.status(403).json({ success: false, error: 'Apenas administradores podem editar tarefas' });
+    }
     
     if (!card.exists) {
       return res.status(404).json({ success: false, error: 'Card não encontrado' });
