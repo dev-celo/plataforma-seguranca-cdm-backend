@@ -223,34 +223,52 @@ export const adicionarTarefa = async (req, res, next) => {
     const { cardId } = req.params;
     const { titulo, descricao, dataInicio, dataFim, anexo } = req.body;
     
+    console.log('=' .repeat(60));
+    console.log('📝 [ADICIONAR TAREFA] Iniciando...');
+    console.log(`👤 Usuário logado: ${usuario.email}`);
+    console.log(`🆔 UID: ${usuario.uid}`);
+    console.log(`📌 Card ID: ${cardId}`);
+    console.log(`📋 Dados da tarefa:`, { titulo, descricao, dataInicio, dataFim });
+    
     const admin = isAdmin(usuario);
+    console.log(`🔑 É admin? ${admin}`);
     
     const cardRef = db.collection(COLLECTION).doc(cardId);
     const card = await cardRef.get();
     
     if (!card.exists) {
+      console.log('❌ Card não encontrado no Firestore');
       return res.status(404).json({ success: false, error: 'Card não encontrado' });
     }
     
     const cardData = card.data();
+    console.log(`📇 Dono do card: ${cardData.email}`);
+    console.log(`🔍 Comparação: "${cardData.email}" === "${usuario.email}" = ${cardData.email === usuario.email}`);
     
-    // 🔥 PERMISSÃO: admin OU o próprio dono do card
     const isOwner = cardData.email === usuario.email;
     
+    // 🔥 PERMISSÃO: admin OU o próprio dono do card
     if (!admin && !isOwner) {
+      console.log('❌ PERMISSÃO NEGADA! Usuário não tem autorização.');
       return res.status(403).json({ 
         success: false, 
-        error: 'Você só pode adicionar tarefas ao seu próprio card' 
+        error: 'Você só pode adicionar tarefas ao seu próprio card',
+        debug: { cardEmail: cardData.email, userEmail: usuario.email }
       });
     }
     
+    console.log('✅ PERMISSÃO CONCEDIDA! Prosseguindo...');
+    
+    // Validação dos dados
     const validation = validarTarefa({ titulo, descricao, dataInicio, dataFim });
     if (!validation.valid) {
+      console.log('❌ Dados inválidos:', validation.errors);
       return res.status(400).json({ success: false, errors: validation.errors });
     }
     
     const hoje = new Date().toISOString().split('T')[0];
     const status = dataFim < hoje ? 'atrasada' : 'pendente';
+    console.log(`📅 Data hoje: ${hoje}, Data fim: ${dataFim}, Status: ${status}`);
     
     const novaTarefa = {
       id: Date.now().toString(),
@@ -264,17 +282,29 @@ export const adicionarTarefa = async (req, res, next) => {
       notificadoAtraso: false,
     };
     
+    console.log(`📝 Nova tarefa criada:`, novaTarefa);
+    
     const tarefas = [...(cardData.tarefas || []), novaTarefa];
     await cardRef.update({ 
       tarefas,
       updatedAt: new Date().toISOString(),
     });
     
+    console.log(`✅ Tarefa adicionada com sucesso! Total de tarefas: ${tarefas.length}`);
+    
     // Verificar se a tarefa já está atrasada para notificar
     if (status === 'atrasada') {
-      const { enviarNotificacaoAtraso } = await import('../services/emailService.js');
-      await enviarNotificacaoAtraso(cardData.email, novaTarefa, cardData.responsavel);
+      console.log(`📧 Tarefa atrasada, enviando notificação para ${cardData.email}`);
+      try {
+        const { enviarNotificacaoAtraso } = await import('../services/emailService.js');
+        await enviarNotificacaoAtraso(cardData.email, novaTarefa, cardData.responsavel);
+        console.log('✅ Notificação enviada com sucesso');
+      } catch (emailError) {
+        console.error('❌ Erro ao enviar notificação:', emailError.message);
+      }
     }
+    
+    console.log('=' .repeat(60));
     
     res.status(201).json({ 
       success: true, 
@@ -282,7 +312,9 @@ export const adicionarTarefa = async (req, res, next) => {
       message: 'Tarefa adicionada com sucesso!' 
     });
   } catch (error) {
-    console.error('❌ Erro ao adicionar tarefa:', error);
+    console.error('❌ [ERRO] ao adicionar tarefa:', error.message);
+    console.error('📚 Stack trace:', error.stack);
+    console.log('=' .repeat(60));
     next(error);
   }
 };
