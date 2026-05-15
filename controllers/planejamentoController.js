@@ -8,15 +8,20 @@ import { verificarENotificarAtrasos } from '../services/emailService.js';
 // FUNÇÕES AUXILIARES
 // ============================
 
-const isAdmin = (usuario) => {
-  const adminEmails = [
-    'marcelohenrique.backend@gmail.com',
-    'vinicius.bacelar@cdmconstrutoraba.com',
-    'diego.montanha@cdmconstrutoraba.com'
-  ];
-  return adminEmails.includes(usuario.email) || usuario.admin === true;
-};
+const ADMIN_EMAILS = [
+  'marcelohenrique.backend@gmail.com',
+  'viniciusbacelar@cdmconstrutoraba.com',
+  'diego.montanha@cdmconstrutoraba.com'
+];
 
+const isAdmin = (usuario) => {
+  const userEmail = usuario.email?.toLowerCase().trim();
+
+  return (
+    ADMIN_EMAILS.includes(userEmail) ||
+    usuario.admin === true
+  );
+};
 // ============================
 // CRUD DE CARDS (RESPONSÁVEIS)
 // ============================
@@ -32,6 +37,7 @@ export const listarCards = async (req, res, next) => {
     
     console.log(`📋 [DEBUG] Buscando cards para: ${usuario.email}`);
     console.log(`📋 [DEBUG] É admin? ${admin}`);
+    console.log('📋 Usuário completo:', usuario);
     
     let query = db.collection(COLLECTION).orderBy('createdAt', 'desc');
     
