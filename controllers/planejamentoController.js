@@ -11,6 +11,7 @@ import { verificarENotificarAtrasos } from '../services/emailService.js';
 const ADMIN_EMAILS = [
   'marcelohenrique.backend@gmail.com',
   'viniciusbacelar@cdmconstrutoraba.com.br',
+  'vinicius.bacelar@cdmconstrutoraba.com.br',
   'diego.montanha@cdmconstrutoraba.com'
 ];
 
