@@ -8,6 +8,15 @@ import exportRouter from './routes/export.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import planejamentoRouter from './routes/planejamento.js';
 
+// 🔥 NOVAS IMPORTAÇÕES DO SISTEMA DE RASTREAMENTO
+import contratosRouter from './routes/contratos.js';
+import itensRouter from './routes/itens.js';
+import movimentacoesRouter from './routes/movimentacoes.js';
+import rastreamentoRelatoriosRouter from './routes/rastreamentoRelatorios.js';
+import { inicializarCategorias } from './models/Rastreamento.js';
+import { verificarEmprestimosAtrasados } from './services/alertaService.js';
+import cron from 'node-cron';
+
 dotenv.config();
 
 const app = express();
@@ -48,11 +57,19 @@ const limiter = rateLimit({
 app.use('/api/', limiter);
 
 // ============================
-// ROTAS
+// ROTAS EXISTENTES
 // ============================
 app.use('/api/reports', reportsRouter);
 app.use('/api/export', exportRouter);
-app.use('/api/planejamento', planejamentoRouter);  // 🔥 MOVIDA PARA CÁ (antes do listen)
+app.use('/api/planejamento', planejamentoRouter);
+
+// ============================
+// NOVAS ROTAS - SISTEMA DE RASTREAMENTO
+// ============================
+app.use('/api/contratos', contratosRouter);
+app.use('/api/itens', itensRouter);
+app.use('/api/movimentacoes', movimentacoesRouter);
+app.use('/api/relatorios', rastreamentoRelatoriosRouter);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -65,7 +82,43 @@ app.use(errorHandler);
 // ============================
 // INICIALIZAÇÃO DO SERVIDOR
 // ============================
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`✅ CORS permitindo origens:`, allowedOrigins);
-});
+const startServer = async () => {
+  try {
+    // Inicializar categorias padrão no Firestore
+    await inicializarCategorias();
+    console.log('📦 Categorias de materiais inicializadas');
+    
+    // Iniciar servidor
+    app.listen(PORT, () => {
+      console.log(`🚀 Server running on port ${PORT}`);
+      console.log(`✅ CORS permitindo origens:`, allowedOrigins);
+      console.log(`📋 Rotas de rastreamento ativas:`);
+      console.log(`   - /api/contratos`);
+      console.log(`   - /api/itens`);
+      console.log(`   - /api/movimentacoes`);
+      console.log(`   - /api/relatorios`);
+    });
+    
+    // 🔥 CRON JOB: Verificar empréstimos atrasados todo dia às 8h
+    cron.schedule('0 8 * * *', async () => {
+      console.log('🔄 [CRON] Verificando empréstimos atrasados...');
+      const resultado = await verificarEmprestimosAtrasados();
+      if (resultado.success) {
+        console.log(`✅ [CRON] Verificação concluída: ${resultado.totalAtrasados || 0} empréstimos atrasados`);
+        if (resultado.notificacoesEnviadas) {
+          console.log(`📧 [CRON] ${resultado.notificacoesEnviadas} notificações enviadas`);
+        }
+      } else {
+        console.error('❌ [CRON] Erro na verificação:', resultado.error);
+      }
+    });
+    
+    console.log('⏰ [CRON] Agendamento de verificação de empréstimos ativado (08:00 diário)');
+    
+  } catch (error) {
+    console.error('❌ Erro ao inicializar servidor:', error);
+    process.exit(1);
+  }
+};
+
+startServer();
