@@ -16,6 +16,7 @@ import rastreamentoRelatoriosRouter from './routes/rastreamentoRelatorios.js';
 import { inicializarCategorias } from './models/Rastreamento.js';
 import { verificarEmprestimosAtrasados } from './services/alertaService.js';
 import cron from 'node-cron';
+import categoriasRouter from './routes/categorias.js';
 
 dotenv.config();
 
@@ -120,5 +121,14 @@ const startServer = async () => {
     process.exit(1);
   }
 };
+
+app.use('/api/categorias', categoriasRouter);
+
+// Adicione no server.js temporariamente para criar categorias
+app.get('/api/inicializar-categorias', async (req, res) => {
+  const { inicializarCategorias } = await import('./models/Rastreamento.js');
+  await inicializarCategorias();
+  res.json({ message: 'Categorias inicializadas!' });
+});
 
 startServer();

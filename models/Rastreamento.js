@@ -35,16 +35,10 @@ export const TIPO_ITEM = {
 
 // Categorias pré-definidas (para seed inicial)
 export const CATEGORIAS_PADRAO = [
-  { nome: 'Estrutura', tipo: TIPO_ITEM.MATERIAL, descricao: 'Vigas, metalon, pilares, perfis' },
-  { nome: 'Parafusos e Fixadores', tipo: TIPO_ITEM.MATERIAL, descricao: 'Parafusos, porcas, arruelas' },
-  { nome: 'Eletrodos', tipo: TIPO_ITEM.CONSUMIVEL, descricao: 'Eletrodos para solda' },
-  { nome: 'Discos de Corte', tipo: TIPO_ITEM.CONSUMIVEL, descricao: 'Discos para corte e desbaste' },
-  { nome: 'Tintas e Vernizes', tipo: TIPO_ITEM.CONSUMIVEL, descricao: 'Tintas, vernizes, solventes' },
-  { nome: 'Ferramentas Manuais', tipo: TIPO_ITEM.FERRAMENTA, descricao: 'Martelos, chaves, alicates' },
-  { nome: 'Ferramentas de Medição', tipo: TIPO_ITEM.FERRAMENTA, descricao: 'Eslimetros, trenas, níveis' },
-  { nome: 'Equipamentos Elétricos', tipo: TIPO_ITEM.EQUIPAMENTO, descricao: 'Parafusadeiras, furadeiras' },
-  { nome: 'Equipamentos de Corte', tipo: TIPO_ITEM.EQUIPAMENTO, descricao: 'Serras, roçadeiras, motosserras' },
-  { nome: 'Equipamentos de Solda', tipo: TIPO_ITEM.EQUIPAMENTO, descricao: 'Inversoras, máscaras de solda' },
+  { nome: 'Ferramentas', tipo: TIPO_ITEM.FERRAMENTA, descricao: 'Ferramentas manuais e de medição' },
+  { nome: 'Equipamentos', tipo: TIPO_ITEM.EQUIPAMENTO, descricao: 'Equipamentos elétricos, motores, máquinas' },
+  { nome: 'Consumíveis', tipo: TIPO_ITEM.CONSUMIVEL, descricao: 'Itens de consumo como eletrodos, discos, tintas' },
+  { nome: 'Materiais', tipo: TIPO_ITEM.MATERIAL, descricao: 'Materiais estruturais como vigas, metalon, parafusos' },
 ];
 
 /**

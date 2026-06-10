@@ -13,8 +13,9 @@ app.use(express.json());
 const SECRET = "segredo_super";
 
 const users = [
-  { id: 1, username: "monica", password: bcrypt.hashSync("123456", 8) },
-  { id: 2, username: "vannic", password: bcrypt.hashSync("123456", 8) }
+  { id: 1, username: "Sued Brandão", password: bcrypt.hashSync("123456", 8) },
+  { id: 2, username: "Flávia Cardoso", password: bcrypt.hashSync("123456", 8) },
+  { id: 2, username: "Maiana Cardim", password: bcrypt.hashSync("123456", 8) }
 ];
 
 let database = [];
