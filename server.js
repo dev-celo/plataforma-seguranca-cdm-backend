@@ -8,15 +8,17 @@ import exportRouter from './routes/export.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import planejamentoRouter from './routes/planejamento.js';
 
-// 🔥 NOVAS IMPORTAÇÕES DO SISTEMA DE RASTREAMENTO
+// 🔥 SISTEMA DE RASTREAMENTO
 import contratosRouter from './routes/contratos.js';
 import itensRouter from './routes/itens.js';
 import movimentacoesRouter from './routes/movimentacoes.js';
 import rastreamentoRelatoriosRouter from './routes/rastreamentoRelatorios.js';
+import categoriasRouter from './routes/categorias.js';
+import empresasRouter from './routes/empresas.js';  // ← NOVA
+
 import { inicializarCategorias } from './models/Rastreamento.js';
 import { verificarEmprestimosAtrasados } from './services/alertaService.js';
 import cron from 'node-cron';
-import categoriasRouter from './routes/categorias.js';
 
 dotenv.config();
 
@@ -35,7 +37,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Permite requisições sem origem (como Postman)
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
@@ -51,26 +52,24 @@ app.use(express.json({ limit: '10mb' }));
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
+  windowMs: 15 * 60 * 1000,
   max: 100,
   message: 'Too many requests from this IP'
 });
 app.use('/api/', limiter);
 
 // ============================
-// ROTAS EXISTENTES
+// ROTAS
 // ============================
 app.use('/api/reports', reportsRouter);
 app.use('/api/export', exportRouter);
 app.use('/api/planejamento', planejamentoRouter);
-
-// ============================
-// NOVAS ROTAS - SISTEMA DE RASTREAMENTO
-// ============================
 app.use('/api/contratos', contratosRouter);
 app.use('/api/itens', itensRouter);
 app.use('/api/movimentacoes', movimentacoesRouter);
 app.use('/api/relatorios', rastreamentoRelatoriosRouter);
+app.use('/api/categorias', categoriasRouter);
+app.use('/api/empresas', empresasRouter);  // ← NOVA ROTA
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -81,54 +80,41 @@ app.get('/api/health', (req, res) => {
 app.use(errorHandler);
 
 // ============================
-// INICIALIZAÇÃO DO SERVIDOR
+// INICIALIZAÇÃO
 // ============================
 const startServer = async () => {
   try {
-    // Inicializar categorias padrão no Firestore
     await inicializarCategorias();
     console.log('📦 Categorias de materiais inicializadas');
     
-    // Iniciar servidor
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`✅ CORS permitindo origens:`, allowedOrigins);
-      console.log(`📋 Rotas de rastreamento ativas:`);
+      console.log(`📋 Rotas ativas:`);
       console.log(`   - /api/contratos`);
       console.log(`   - /api/itens`);
       console.log(`   - /api/movimentacoes`);
       console.log(`   - /api/relatorios`);
+      console.log(`   - /api/categorias`);
+      console.log(`   - /api/empresas`);
     });
     
-    // 🔥 CRON JOB: Verificar empréstimos atrasados todo dia às 8h
     cron.schedule('0 8 * * *', async () => {
       console.log('🔄 [CRON] Verificando empréstimos atrasados...');
       const resultado = await verificarEmprestimosAtrasados();
       if (resultado.success) {
-        console.log(`✅ [CRON] Verificação concluída: ${resultado.totalAtrasados || 0} empréstimos atrasados`);
-        if (resultado.notificacoesEnviadas) {
-          console.log(`📧 [CRON] ${resultado.notificacoesEnviadas} notificações enviadas`);
-        }
+        console.log(`✅ [CRON] ${resultado.totalAtrasados || 0} empréstimos atrasados`);
       } else {
-        console.error('❌ [CRON] Erro na verificação:', resultado.error);
+        console.error('❌ [CRON] Erro:', resultado.error);
       }
     });
     
-    console.log('⏰ [CRON] Agendamento de verificação de empréstimos ativado (08:00 diário)');
+    console.log('⏰ [CRON] Agendamento ativado (08:00 diário)');
     
   } catch (error) {
     console.error('❌ Erro ao inicializar servidor:', error);
     process.exit(1);
   }
 };
-
-app.use('/api/categorias', categoriasRouter);
-
-// Adicione no server.js temporariamente para criar categorias
-app.get('/api/inicializar-categorias', async (req, res) => {
-  const { inicializarCategorias } = await import('./models/Rastreamento.js');
-  await inicializarCategorias();
-  res.json({ message: 'Categorias inicializadas!' });
-});
 
 startServer();
