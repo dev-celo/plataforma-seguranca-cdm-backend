@@ -1,6 +1,7 @@
 // routes/contratos.js
 import express from 'express';
 import { autenticarUsuario } from '../middleware/planejamentoAuth.js';
+import { setEmpresaContext } from '../middleware/empresaMiddleware.js';
 import {
   listarContratos,
   buscarContrato,
@@ -12,6 +13,7 @@ import {
 const router = express.Router();
 
 router.use(autenticarUsuario);
+router.use(setEmpresaContext);
 
 router.get('/', listarContratos);
 router.get('/:id', buscarContrato);

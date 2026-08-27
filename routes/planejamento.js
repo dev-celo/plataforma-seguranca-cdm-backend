@@ -12,11 +12,13 @@ import {
   toggleConcluirTarefa,
   verificarNotificarAtrasos,
 } from '../controllers/planejamentoController.js';
+import { setEmpresaContext } from '../middleware/empresaMiddleware.js';
 
 const router = express.Router();
 
 // 🔥 TODAS as rotas exigem autenticação (via Firebase Auth)
 router.use(autenticarUsuario);
+router.use(setEmpresaContext);
 
 // Rotas de Cards
 router.get('/cards', listarCards);

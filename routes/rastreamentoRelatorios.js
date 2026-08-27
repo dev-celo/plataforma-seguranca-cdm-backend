@@ -8,10 +8,12 @@ import {
   relatorioEmprestimosPendentes,
   relatorioHistoricoItem,
 } from '../controllers/rastreamentoRelatoriosController.js';
+import { setEmpresaContext } from '../middleware/empresaMiddleware.js';
 
 const router = express.Router();
 
 router.use(autenticarUsuario);
+router.use(setEmpresaContext);
 
 router.get('/dashboard', relatorioDashboard);
 router.get('/contrato/:contratoId', relatorioItensPorContrato);

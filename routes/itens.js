@@ -10,10 +10,12 @@ import {
   excluirItem,
   alterarStatusItem,
 } from '../controllers/itemController.js';
+import { setEmpresaContext } from '../middleware/empresaMiddleware.js';
 
 const router = express.Router();
 
 router.use(autenticarUsuario);
+router.use(setEmpresaContext);
 
 router.get('/', listarItens);
 router.get('/:id', buscarItem);

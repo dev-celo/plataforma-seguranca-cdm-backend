@@ -3,11 +3,13 @@ import express from 'express';
 import { db } from '../services/firebaseAdmin.js';
 import { COLLECTIONS } from '../models/Rastreamento.js';
 import { autenticarUsuario } from '../middleware/planejamentoAuth.js';
+import { setEmpresaContext } from '../middleware/empresaMiddleware.js';
 
 const router = express.Router();
 
 // Todas as rotas de categorias exigem autenticação
 router.use(autenticarUsuario);
+router.use(setEmpresaContext);
 
 /**
  * Listar todas as categorias

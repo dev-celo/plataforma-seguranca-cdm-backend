@@ -7,10 +7,12 @@ import {
   registrarDevolucao,
   listarMovimentacoesAtrasadas,
 } from '../controllers/movimentacaoController.js';
+import { setEmpresaContext } from '../middleware/empresaMiddleware.js';
 
 const router = express.Router();
 
 router.use(autenticarUsuario);
+router.use(setEmpresaContext);
 
 router.get('/', listarMovimentacoes);
 router.get('/atrasadas', listarMovimentacoesAtrasadas);
